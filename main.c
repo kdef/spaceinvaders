@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
 		int height;
 		glfwGetFramebufferSize(window, &width, &height);
 		glViewport(0, 0, width, height);
+		glfwPollEvents();
 	}
 
 	glfwDestroyWindow(window);
