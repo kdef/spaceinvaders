@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 typedef struct {
@@ -38,12 +39,12 @@ int main(int argc, char *argv[]) {
 	buffer.height = 480;
 	buffer.data = malloc(sizeof (uint32_t) * (buffer.width * buffer.height));
 
-	uint32_t clear_color = rgb_to_uint32(0, 255, 0);
-	buffer_clear(&buffer, clear_color);
-
 	glfwSetErrorCallback(error_cb);
 	if (!glfwInit())
 		return -1;
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
 	window = glfwCreateWindow(buffer.width, buffer.height, "Space Invaders!", NULL, NULL);
 	if (!window) {
@@ -53,6 +54,17 @@ int main(int argc, char *argv[]) {
 
 	glfwMakeContextCurrent(window);
 	glfwSetKeyCallback(window, key_cb);
+
+	if(glewInit() != GLEW_OK)
+	{
+	    fprintf(stderr, "Error initializing GLEW.\n");
+	    glfwTerminate();
+	    return -1;
+	}
+
+	// start drawing
+	uint32_t clear_color = rgb_to_uint32(0, 255, 0);
+	buffer_clear(&buffer, 0);
 
 	while (!glfwWindowShouldClose(window)) {
 		int width;
