@@ -1,2 +1,2 @@
 all: main.c
-	gcc -o spaceinvaders main.c -lglfw -lGL
+	gcc -g -o spaceinvaders main.c -lglfw -lGLEW -lGL
