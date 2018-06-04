@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #define GAME_MAX_BULLETS 100
+#define NUM_ALIEN_SPRITES 6
 
 //http://nicktasios.nl/posts/space-invaders-from-scratch-part-2.html
 const char *vertex_shader =
@@ -113,70 +114,9 @@ int sprite_overlap_check(Sprite *sprite1, size_t x1, size_t y1,
 	return 0;
 }
 
-void error_cb(int errno, const char *description) {
-	fprintf(stderr, "GLFW Error: %s\n", description);
-}
-
-void key_cb(GLFWwindow *window, int key, int scancode, int action, int mods)
-{
-    switch (key) {
-        case GLFW_KEY_ESCAPE:
-            if (action == GLFW_PRESS)
-                glfwSetWindowShouldClose(window, GL_TRUE);
-            break;
-        case GLFW_KEY_RIGHT:
-            if (action == GLFW_PRESS) move_dir += 1;
-            else if (action == GLFW_RELEASE) move_dir -=1;
-            break;
-        case GLFW_KEY_LEFT:
-            if (action == GLFW_PRESS) move_dir -= 1;
-            else if (action == GLFW_RELEASE) move_dir +=1;
-            break;
-        case GLFW_KEY_SPACE:
-            if (action == GLFW_RELEASE) should_fire = 1;
-            break;
-        default:
-            break;
-    }
-}
-
-void validate_shader(GLuint shader){
-    static const unsigned int BUFFER_SIZE = 512;
-    char buffer[BUFFER_SIZE];
-    GLsizei length = 0;
-
-    glGetShaderInfoLog(shader, BUFFER_SIZE, &length, buffer);
-
-    if(length>0){
-        printf("Shader %d compile error: %s\n", shader, buffer);
-    }
-}
-
-int validate_program(GLuint program){
-    static const GLsizei BUFFER_SIZE = 512;
-    GLchar buffer[BUFFER_SIZE];
-    GLsizei length = 0;
-
-    glGetProgramInfoLog(program, BUFFER_SIZE, &length, buffer);
-
-    if(length>0){
-        printf("Program %d link error: %s\n", program, buffer);
-        return 0;
-    }
-
-    return 1;
-}
-
-int main(int argc, char *argv[]) {
-	GLFWwindow *window;
-	Buffer buffer;
-
-	buffer.width = 224;
-	buffer.height = 256;
-	buffer.data = malloc(sizeof(uint32_t) * (buffer.width * buffer.height));
-	buffer_clear(&buffer, 0);
-
-	Sprite alien_sprites[6];
+void sprite_create_all(Sprite **aliens, Sprite **alien_death, Sprite **bullet,
+					   Sprite **player) {
+	static Sprite alien_sprites[NUM_ALIEN_SPRITES];
 
 	alien_sprites[0].width = 8;
 	alien_sprites[0].height = 8;
@@ -281,7 +221,7 @@ int main(int argc, char *argv[]) {
 		memcpy(alien_sprites[5].data, tmp, sizeof(uint8_t) * 96);
 	}
 
-	Sprite alien_death_sprite;
+	static Sprite alien_death_sprite;
 	alien_death_sprite.width = 13;
 	alien_death_sprite.height = 7;
 	alien_death_sprite.data = malloc(sizeof(uint8_t) * 91);
@@ -298,32 +238,111 @@ int main(int argc, char *argv[]) {
 		memcpy(alien_death_sprite.data, tmp, sizeof(uint8_t) * 91);
 	}
 
-    Sprite bullet_sprite;
+    static Sprite bullet_sprite;
     bullet_sprite.width = 1;
     bullet_sprite.height = 3;
     bullet_sprite.data = malloc(sizeof(uint8_t) * 3);
-    uint8_t tmp4[] = {
-        1, // @
-        1, // @
-        1  // @
-    };
-    memcpy(bullet_sprite.data, tmp4, sizeof(uint8_t) * 3);
+	{
+		uint8_t tmp[] = {
+		    1, // @
+		    1, // @
+		    1  // @
+		};
+		memcpy(bullet_sprite.data, tmp, sizeof(uint8_t) * 3);
+	}
 
-	Sprite player_sprite;
+	static Sprite player_sprite;
 	player_sprite.width = 11;
 	player_sprite.height = 7;
-	size_t player_size = sizeof(uint8_t) * (player_sprite.width * player_sprite.height);
-	player_sprite.data = malloc(player_size);
-	uint8_t tmp2[] = {
-		0,0,0,0,0,1,0,0,0,0,0, // .....@.....
-		0,0,0,0,1,1,1,0,0,0,0, // ....@@@....
-		0,0,0,0,1,1,1,0,0,0,0, // ....@@@....
-		0,1,1,1,1,1,1,1,1,1,0, // .@@@@@@@@@.
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-	};
-	memcpy(player_sprite.data, tmp2, player_size);
+	player_sprite.data = malloc(sizeof(uint8_t) * 77);
+	{
+		uint8_t tmp[] = {
+			0,0,0,0,0,1,0,0,0,0,0, // .....@.....
+			0,0,0,0,1,1,1,0,0,0,0, // ....@@@....
+			0,0,0,0,1,1,1,0,0,0,0, // ....@@@....
+			0,1,1,1,1,1,1,1,1,1,0, // .@@@@@@@@@.
+			1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
+			1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
+			1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
+		};
+		memcpy(player_sprite.data, tmp, 77);
+	}
+
+	*aliens = alien_sprites;
+	*alien_death = &alien_death_sprite;
+	*bullet = &bullet_sprite;
+	*player = &player_sprite;
+}
+
+void error_cb(int errno, const char *description) {
+	fprintf(stderr, "GLFW Error: %s\n", description);
+}
+
+void key_cb(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+    switch (key) {
+        case GLFW_KEY_ESCAPE:
+            if (action == GLFW_PRESS)
+                glfwSetWindowShouldClose(window, GL_TRUE);
+            break;
+        case GLFW_KEY_RIGHT:
+            if (action == GLFW_PRESS) move_dir += 1;
+            else if (action == GLFW_RELEASE) move_dir -=1;
+            break;
+        case GLFW_KEY_LEFT:
+            if (action == GLFW_PRESS) move_dir -= 1;
+            else if (action == GLFW_RELEASE) move_dir +=1;
+            break;
+        case GLFW_KEY_SPACE:
+            if (action == GLFW_RELEASE) should_fire = 1;
+            break;
+        default:
+            break;
+    }
+}
+
+void validate_shader(GLuint shader){
+    static const unsigned int BUFFER_SIZE = 512;
+    char buffer[BUFFER_SIZE];
+    GLsizei length = 0;
+
+    glGetShaderInfoLog(shader, BUFFER_SIZE, &length, buffer);
+
+    if(length>0){
+        printf("Shader %d compile error: %s\n", shader, buffer);
+    }
+}
+
+int validate_program(GLuint program){
+    static const GLsizei BUFFER_SIZE = 512;
+    GLchar buffer[BUFFER_SIZE];
+    GLsizei length = 0;
+
+    glGetProgramInfoLog(program, BUFFER_SIZE, &length, buffer);
+
+    if(length>0){
+        printf("Program %d link error: %s\n", program, buffer);
+        return 0;
+    }
+
+    return 1;
+}
+
+int main(int argc, char *argv[]) {
+	GLFWwindow *window;
+	Buffer buffer;
+
+	buffer.width = 224;
+	buffer.height = 256;
+	buffer.data = malloc(sizeof(uint32_t) * (buffer.width * buffer.height));
+	buffer_clear(&buffer, 0);
+
+	Sprite *alien_sprites;
+	Sprite *alien_death_sprite;
+	Sprite *bullet_sprite;
+	Sprite *player_sprite;
+
+	sprite_create_all(&alien_sprites, &alien_death_sprite, &bullet_sprite, &player_sprite);
 
 	SpriteAnimation alien_animations[3];
 	
@@ -466,22 +485,21 @@ int main(int argc, char *argv[]) {
 
 			a = game.aliens[i];
 			if (a.type == ALIEN_DEAD) {
-				buffer_draw_sprite(&buffer, &alien_death_sprite, a.x, a.y, sprite_color);
+				buffer_draw_sprite(&buffer, alien_death_sprite, a.x, a.y, sprite_color);
 			} else {
 				SpriteAnimation animation = alien_animations[a.type - 1]; //enums have a underlying int
 				size_t current_frame = animation.time / animation.frame_duration;
-				Sprite sprite = *animation.frames[current_frame];
-				buffer_draw_sprite(&buffer, &sprite, a.x, a.y, sprite_color);
+				buffer_draw_sprite(&buffer, animation.frames[current_frame], a.x, a.y, sprite_color);
 			}
 		}
 
         Bullet bullet;
         for (size_t i = 0; i < game.num_bullets; ++i) {
             bullet = game.bullets[i];
-            buffer_draw_sprite(&buffer, &bullet_sprite, bullet.x, bullet.y, sprite_color);
+            buffer_draw_sprite(&buffer, bullet_sprite, bullet.x, bullet.y, sprite_color);
         }
 
-		buffer_draw_sprite(&buffer, &player_sprite, game.player.x, game.player.y, sprite_color);
+		buffer_draw_sprite(&buffer, player_sprite, game.player.x, game.player.y, sprite_color);
 
 		glTexSubImage2D(
 			GL_TEXTURE_2D, 0, 0, 0,
@@ -522,7 +540,7 @@ int main(int argc, char *argv[]) {
 				if (alien.type == ALIEN_DEAD) continue;
 
 				Sprite s = alien_sprites[(alien.type - 1) * 2];
-				int overlap = sprite_overlap_check(&bullet_sprite, b.x, b.y,
+				int overlap = sprite_overlap_check(bullet_sprite, b.x, b.y,
 												   &s, alien.x, alien.y);
 				if (overlap) {
 					game.aliens[ai].type = ALIEN_DEAD;
@@ -537,8 +555,8 @@ int main(int argc, char *argv[]) {
 
         player_move_dir = 2 * move_dir;
         if (player_move_dir != 0) {
-            if (game.player.x + player_sprite.width + player_move_dir >= game.width) {
-                game.player.x = game.width - player_sprite.width;
+            if (game.player.x + player_sprite->width + player_move_dir >= game.width) {
+                game.player.x = game.width - player_sprite->width;
             }
             else if ((int)game.player.x + player_move_dir <= 0) {
                 game.player.x = 0;
@@ -547,8 +565,8 @@ int main(int argc, char *argv[]) {
         }
 
         if (should_fire && game.num_bullets < GAME_MAX_BULLETS) {
-            game.bullets[game.num_bullets].x = game.player.x + player_sprite.width / 2;
-            game.bullets[game.num_bullets].y = game.player.y + player_sprite.height;
+            game.bullets[game.num_bullets].x = game.player.x + player_sprite->width / 2;
+            game.bullets[game.num_bullets].y = game.player.y + player_sprite->height;
             game.bullets[game.num_bullets].dir = 2;
             game.num_bullets++;
         }
@@ -561,5 +579,13 @@ int main(int argc, char *argv[]) {
 	glfwTerminate();
 	glDeleteVertexArrays(1, &fullscreen_triangle_vao);
 	free(buffer.data);
+
+	for (size_t i = 0; i < NUM_ALIEN_SPRITES; i++) {
+		free(alien_sprites[i].data);
+	}
+	free(alien_death_sprite->data);
+	free(bullet_sprite->data);
+	free(player_sprite->data);
+
 	return 0;
 }
