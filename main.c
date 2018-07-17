@@ -579,7 +579,14 @@ int main(int argc, char *argv[]) {
 	glfwTerminate();
 
 	glDeleteVertexArrays(1, &fullscreen_triangle_vao);
+
+	free(game.aliens);
+
 	free(buffer.data);
+
+	for (size_t i = 0; i < 3; i++) {
+		free(alien_animations[i].frames);
+	}
 
 	for (size_t i = 0; i < NUM_ALIEN_SPRITES; i++) {
 		free(alien_sprites[i].data);
