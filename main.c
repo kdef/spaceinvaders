@@ -105,6 +105,22 @@ void buffer_draw_sprite(Buffer *buffer, Sprite *sprite,
 	}
 }
 
+void buffer_draw_text(Buffer *buffer, Sprite *character_sheet_sprite, char *text,
+					  size_t x, size_t y, uint32_t color) {
+	size_t start_x = x;
+	Sprite sprite = *character_sheet_sprite;
+	size_t sprite_size = sprite.width * sprite.height;
+
+	for (char *c = text; *c != '\0'; c++) {
+		char character = *c - 32; // 32 because the sprite sheet starts at ASCII space
+		if (character < 0 || character >= 65) continue;
+
+		sprite.data = character_sheet_sprite->data + character * sprite_size;
+		buffer_draw_sprite(buffer, &sprite, start_x, y, color);
+		start_x += sprite.width + 1;
+	}
+}
+
 int sprite_overlap_check(Sprite *sprite1, size_t x1, size_t y1,
 						 Sprite *sprite2, size_t x2, size_t y2) {
 	if (x1 < x2 + sprite2->width && x1 + sprite1->width > x2 &&
@@ -115,7 +131,7 @@ int sprite_overlap_check(Sprite *sprite1, size_t x1, size_t y1,
 }
 
 void sprite_create_all(Sprite **aliens, Sprite **alien_death, Sprite **bullet,
-					   Sprite **player) {
+					   Sprite **player, Sprite **character_sheet) {
 	static Sprite alien_sprites[NUM_ALIEN_SPRITES];
 
 	alien_sprites[0].width = 8;
@@ -268,10 +284,90 @@ void sprite_create_all(Sprite **aliens, Sprite **alien_death, Sprite **bullet,
 		memcpy(player_sprite.data, tmp, 77);
 	}
 
+	static Sprite character_sheet_sprite;
+	character_sheet_sprite.width = 5; // width of one character
+	character_sheet_sprite.height = 7; // of one character
+	character_sheet_sprite.data = malloc(sizeof(uint8_t) * 65 * 35);
+	{
+		uint8_t tmp[] = {
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //  
+			0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0, // !
+			0,1,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // "
+			0,1,0,1,0,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,1,0,1,0, // #
+			0,0,1,0,0,0,1,1,1,0,1,0,1,0,0,0,1,1,1,0,0,0,1,0,1,0,1,1,1,0,0,0,1,0,0, // $
+			1,1,0,1,0,1,1,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,1,0,1,0,1,1, // %
+			0,1,1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,1,0,0,1,0,0,1,0,1,0,0,0,1,0,1,1,1,1, // &
+			0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // '
+			0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1, // (
+			1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0, // )
+			0,0,1,0,0,1,0,1,0,1,0,1,1,1,0,0,0,1,0,0,0,1,1,1,0,1,0,1,0,1,0,0,1,0,0, // *
+			0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,1,1,1,1,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0, // +
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0, // ,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // -
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0, // .
+			0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0, // /
+
+			0,1,1,1,0,1,0,0,0,1,1,0,0,1,1,1,0,1,0,1,1,1,0,0,1,1,0,0,0,1,0,1,1,1,0, // 0
+			0,0,1,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,1,1,0, // 1
+			0,1,1,1,0,1,0,0,0,1,0,0,0,0,1,0,0,1,1,0,0,1,0,0,0,1,0,0,0,0,1,1,1,1,1, // 2
+			1,1,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 3
+			0,0,0,1,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,0,1,1,1,1,1,0,0,0,1,0,0,0,0,1,0, // 4
+			1,1,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 5
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 6
+			1,1,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0, // 7
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 8
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,1,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 9
+
+			0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0, // :
+			0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0, // ;
+			0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1, // <
+			0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0, // =
+			1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0, // >
+			0,1,1,1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0, // ?
+			0,1,1,1,0,1,0,0,0,1,1,0,1,0,1,1,1,0,1,1,1,0,1,0,0,1,0,0,0,1,0,1,1,1,0, // @
+
+			0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,0,0,0,1, // A
+			1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0, // B
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,1,1,0, // C
+			1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0, // D
+			1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,1,1,1,1, // E
+			1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0, // F
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,1,0,1,1,1,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // G
+			1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1, // H
+			0,1,1,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,1,1,0, // I
+			0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // J
+			1,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,0,1,0,1,0,0,1,0,0,1,0,1,0,0,0,1, // K
+			1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,1,1,1,1, // L
+			1,0,0,0,1,1,1,0,1,1,1,0,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1, // M
+			1,0,0,0,1,1,0,0,0,1,1,1,0,0,1,1,0,1,0,1,1,0,0,1,1,1,0,0,0,1,1,0,0,0,1, // N
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // O
+			1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0, // P
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,1,1,0,1,1,1,1, // Q
+			1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0,1,0,1,0,0,1,0,0,1,0,1,0,0,0,1, // R
+			0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,0,1,1,1,0,1,0,0,0,1,0,0,0,0,1,0,1,1,1,0, // S
+			1,1,1,1,1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0, // T
+			1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // U
+			1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0, // V
+			1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,1,0,1,1,1,0,1,1,1,0,0,0,1, // W
+			1,0,0,0,1,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,1,0,0,0,1, // X
+			1,0,0,0,1,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0, // Y
+			1,1,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,1,1,1, // Z
+
+			0,0,0,1,1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,1, // [
+			0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0, // 
+			1,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,1,1,0,0,0, // ]
+			0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // ^
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1, // _
+			0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  // `
+		};
+		memcpy(character_sheet_sprite.data, tmp, 65 * 35);
+	}
+
 	*aliens = alien_sprites;
 	*alien_death = &alien_death_sprite;
 	*bullet = &bullet_sprite;
 	*player = &player_sprite;
+	*character_sheet = &character_sheet_sprite;
 }
 
 void error_cb(int errno, const char *description) {
@@ -331,6 +427,7 @@ int validate_program(GLuint program){
 int main(int argc, char *argv[]) {
 	GLFWwindow *window;
 	Buffer buffer;
+	char score_text[7 + 64]; //Score: .{64}
 
 	buffer.width = 224;
 	buffer.height = 256;
@@ -341,11 +438,12 @@ int main(int argc, char *argv[]) {
 	Sprite *alien_death_sprite;
 	Sprite *bullet_sprite;
 	Sprite *player_sprite;
+	Sprite *character_sheet;
 
-	sprite_create_all(&alien_sprites, &alien_death_sprite, &bullet_sprite, &player_sprite);
+	sprite_create_all(&alien_sprites, &alien_death_sprite, &bullet_sprite,
+					  &player_sprite, &character_sheet);
 
 	SpriteAnimation alien_animations[3];
-	
 	for (size_t i = 0; i < 3; i++) {
 		alien_animations[i].should_loop = 1; //true
 		alien_animations[i].num_frames = 2;
@@ -441,12 +539,6 @@ int main(int argc, char *argv[]) {
 
 	glUseProgram(shader_id);
 
-	// start drawing
-	uint32_t clear_color = rgb_to_uint32(0, 255, 0);
-	buffer_clear(&buffer, 0);
-
-	uint32_t sprite_color = rgb_to_uint32(255, 0, 0);
-
 	GLuint buffer_texture;
 	glGenTextures(1, &buffer_texture);
 
@@ -469,8 +561,15 @@ int main(int argc, char *argv[]) {
 	glBindVertexArray(fullscreen_triangle_vao);
 
 	glfwSwapInterval(1);	
-	int player_move_dir = 0;
 
+	uint32_t clear_color = rgb_to_uint32(0, 255, 0);
+	uint32_t sprite_color = rgb_to_uint32(255, 0, 0);
+	uint32_t text_color = rgb_to_uint32(0, 0, 255);
+
+	int player_move_dir = 0;
+	size_t player_score = 0;
+
+	// number of frames to display dead aliens
 	uint8_t death_counters[game.num_aliens];
 	for (size_t i = 0; i < game.num_aliens; i++) {
 		death_counters[i] = 10;
@@ -479,6 +578,7 @@ int main(int argc, char *argv[]) {
 	while (!glfwWindowShouldClose(window)) {
 		buffer_clear(&buffer, clear_color);
 
+		// Draw
 		Alien a;
 		for (size_t i = 0; i < game.num_aliens; i++) {
 			if (!death_counters[i]) continue; //alien already dead
@@ -501,6 +601,9 @@ int main(int argc, char *argv[]) {
 
 		buffer_draw_sprite(&buffer, player_sprite, game.player.x, game.player.y, sprite_color);
 
+		snprintf(score_text, 71, "SCORE: %zu", player_score);
+		buffer_draw_text(&buffer, character_sheet, score_text, 10, 10, text_color);
+
 		glTexSubImage2D(
 			GL_TEXTURE_2D, 0, 0, 0,
 			buffer.width, buffer.height,
@@ -511,6 +614,7 @@ int main(int argc, char *argv[]) {
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 		glfwSwapBuffers(window);
 
+		// Update game
 		for (size_t i = 0; i < 3; i++) {
 			alien_animations[i].time++;
 			if (alien_animations[i].time == alien_animations[i].num_frames * alien_animations[i].frame_duration) {
@@ -518,10 +622,10 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		for (size_t ai = 0; ai < game.num_aliens; ai++) {
-			Alien alien = game.aliens[ai];
-			if (alien.type == ALIEN_DEAD && death_counters[ai]) {
-				death_counters[ai]--;
+		for (size_t i = 0; i < game.num_aliens; i++) {
+			Alien alien = game.aliens[i];
+			if (alien.type == ALIEN_DEAD && death_counters[i]) {
+				death_counters[i]--;
 			}
 		}
 
@@ -546,6 +650,7 @@ int main(int argc, char *argv[]) {
 					game.aliens[ai].type = ALIEN_DEAD;
 					game.bullets[i] = game.bullets[game.num_bullets - 1];
 					game.num_bullets--;
+					player_score += 10 * (4 - alien.type);
 					break;
 				}
 			}
